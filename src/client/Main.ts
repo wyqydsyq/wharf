@@ -4,7 +4,8 @@ import { pre } from '@cycle/dom'
 export const Main = sources => {
   const wsSource = sources.WS || xs.from([])
   return {
-    DOM: wsSource.startWith(pre(['🔥 😉']))
+    DOM: wsSource.map(ev => ev.data).startWith(pre(['🔥'])),
+    WS: xs.of('hello from the client!')
   }
 }
 
