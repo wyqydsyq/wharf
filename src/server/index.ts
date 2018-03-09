@@ -18,7 +18,7 @@ import { server as config } from '../config'
 
 const server = websockets(new Koa())
 
-// list of active websockets
+// list of active websockets, keyed by ID
 const wsl: {
   [index: string]: WebSocket
 } = {}
@@ -27,7 +27,10 @@ interface WSCTX extends Koa.Context {
   websocket: WebSocket
 }
 
+// serve static assets
 server.use(mount('/static', serve('./dist')))
+
+// serve SSR-rendered, Boilerplate-wrapped Main like an index.html
 server.use(
   route.all('/', (ctx: Koa.Context) => {
     run(sources => Boilerplate(sources, Main), {
@@ -41,36 +44,40 @@ server.use(
   })
 )
 
+// handle incoming ws client connections
 server.ws.use(async (ctx: WSCTX, next) => {
+  // wait for the connection to be ready
   await new Promise(connectionReady => {
     let connecting = setInterval(() => {
-      if (ctx.websocket.readyState === ctx.websocket.OPEN) {
+      if (ctx.websocket.readyState == ctx.websocket.OPEN) {
         clearInterval(connecting)
         connectionReady()
       }
     })
   })
 
+  // give the client an identity
   const id = uuid()
   const meta = {
     id,
     initialized: new Date()
   }
-  console.log(`WS:Open "${id}"`)
+  console.log(`WS:${id}:Open`)
 
   ctx.websocket.on('message', msg => {
-    console.log(`WS:Message "${id}":`, msg)
+    console.log(`WS:${id}:Message:`, msg)
   })
 
   ctx.websocket.on('close', () => {
-    console.log(`WS:Close "${id}"`)
+    console.log(`WS:${id}:Close`)
     delete wsl[id]
   })
 
+  // send the client a feed of stuff
   setInterval(() => {
     const time = new Date()
     wsl[id] &&
-      ctx.websocket.send(
+      wsl[id].send(
         JSON.stringify({
           time,
           wsh: mapObjIndexed(
