@@ -9,6 +9,8 @@ import { run } from '@cycle/run'
 import { makeHTMLDriver } from '@cycle/html'
 import { makeServerHistoryDriver } from '@cycle/history'
 
+import { server as config } from '../config'
+
 import Boilerplate from './Boilerplate'
 import Main from '../client/Main'
 
@@ -30,12 +32,14 @@ server.use(
   })
 )
 
-server.ws.use(
-  route.all('/swarms', async (ctx, next) => {
-    // const swarm = await docker.swarmInspect()
-    ctx.websocket.send('server says hello')
-    return next(ctx)
+server.ws.use(async (ctx, next) => {
+  // const swarm = await docker.swarmInspect()
+  ctx.websocket.on('message', msg => {
+    console.log('WS: ', msg)
+    ctx.websocket.send('Hello from the server!')
   })
-)
+  return next(ctx)
+})
 
-server.listen(3210)
+server.listen(config.port)
+console.log(`Started Koa HTTP & WS server on port ${config.port}`)
