@@ -2,9 +2,9 @@ import xs from 'xstream'
 import { pre } from '@cycle/dom'
 
 export const Main = sources => {
-  const wsSource = sources.ws || xs.from([])
+  const wsSource = sources.WS || xs.from([])
   return {
-    DOM: wsSource.startWith(pre(['🔥!']))
+    DOM: wsSource.startWith(pre(['🔥 😉']))
   }
 }
 
