@@ -5,18 +5,19 @@ const fuse = FuseBox.init({
   output: 'dist/$name.js',
   plugins: []
 })
-fuse.dev({ httpServer: false }) // launch http server
 
-fuse
-  .bundle('server/bundle')
-  .instructions(' > [server/index.ts]')
-  .completed(proc => proc.start())
-  .watch()
+fuse.dev({ httpServer: false }) // just hmr server
 
 fuse
   .bundle('client/bundle')
   .instructions(' > client/index.ts')
   .hmr()
+  .watch()
+
+fuse
+  .bundle('server/bundle')
+  .instructions(' > [server/index.ts]')
+  .completed(proc => proc.start())
   .watch()
 
 fuse.run()

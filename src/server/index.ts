@@ -46,16 +46,6 @@ server.use(
 
 // handle incoming ws client connections
 server.ws.use(async (ctx: WSCTX, next) => {
-  // wait for the connection to be ready
-  await new Promise(connectionReady => {
-    let connecting = setInterval(() => {
-      if (ctx.websocket.readyState == ctx.websocket.OPEN) {
-        clearInterval(connecting)
-        connectionReady()
-      }
-    })
-  })
-
   // give the client an identity
   const id = uuid()
   const meta = {

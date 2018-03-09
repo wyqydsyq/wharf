@@ -12,39 +12,9 @@ export const makeWebSocketDriver = (options?: Options) => {
   const host = `ws://${server.host}:${server.port}${
     options && options.path ? options.path : ''
   }`
-  let pendingTimer
-  let pendingConnection: WebSocket | undefined
+  const retry = (options && options.retry) || 5
 
-  const connect = () =>
-    new Promise<WebSocket>((res, rej) => {
-      pendingTimer = setInterval(async () => {
-        if (!pendingConnection) {
-          try {
-            console.info(`Attempting connection to: ${host}`)
-            pendingConnection = new WebSocket(host)
-            pendingConnection.onopen = function(this: WebSocket, ev: Event) {
-              pendingTimer = clearTimeout(pendingTimer)
-              console.log('Sucessfully connected to: ', this)
-              res(this)
-            }
-            pendingConnection.onerror = function(this: WebSocket, ev: Event) {
-              console.error('WebSocket error: ', ev)
-              rej(this)
-            }
-            pendingConnection.onclose = function(this: WebSocket, ev: Event) {
-              console.log(`Disconnected, attempting reconnection...`)
-              connection = connect()
-            }
-          } catch (e) {
-            console.error(e)
-          }
-        } else {
-          rej(`Unable to connect to ${host}.`)
-        }
-      }, 1000)
-    })
-
-  let connection = connect()
+  let connection = connect(host)
   return send$ => {
     // map each event in send$ (app Sink) to a WebSocket.send(msg)
     send$.addListener({
@@ -84,6 +54,38 @@ export const makeWebSocketDriver = (options?: Options) => {
 
     return adapt(source$)
   }
+}
+
+const connect = host => {
+  let pendingTimer
+  let pendingConnection: WebSocket | undefined
+  return new Promise<WebSocket>((res, rej) => {
+    pendingTimer = setInterval(async () => {
+      if (!pendingConnection) {
+        try {
+          console.info(`Attempting connection to: ${host}`)
+          pendingConnection = new WebSocket(host)
+          pendingConnection.onopen = function(this: WebSocket, ev: Event) {
+            pendingTimer = clearTimeout(pendingTimer)
+            console.log('Sucessfully connected to: ', this)
+            res(this)
+          }
+          pendingConnection.onerror = function(this: WebSocket, ev: Event) {
+            console.error('WebSocket error: ', ev)
+            rej(this)
+          }
+          pendingConnection.onclose = function(this: WebSocket, ev: Event) {
+            console.log(`Disconnected...`)
+            // connection = connect()
+          }
+        } catch (e) {
+          console.error(e)
+        }
+      } else {
+        rej(`Unable to connect to ${host}.`)
+      }
+    }, 1000)
+  })
 }
 
 export default makeWebSocketDriver
