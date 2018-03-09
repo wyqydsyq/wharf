@@ -44,7 +44,7 @@ server.use(
 server.ws.use(async (ctx: WSCTX, next) => {
   await new Promise(connectionReady => {
     let connecting = setInterval(() => {
-      if (ctx.websocket.readyState === 1 && ctx.websocket.OPEN) {
+      if (ctx.websocket.readyState === ctx.websocket.OPEN) {
         clearInterval(connecting)
         connectionReady()
       }
