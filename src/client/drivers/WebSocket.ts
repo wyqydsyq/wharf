@@ -12,45 +12,41 @@ export const makeWebSocketDriver = (options?: Options) => {
   const host = `ws://${server.host}:${server.port}${
     options && options.path ? options.path : ''
   }`
-  const retry = (options && options.retry) || 5
-  let retries = 0
-  let retrying
-  let pendingConnection
+  let pendingTimer
+  let pendingConnection: WebSocket | undefined
 
-  const connection = new Promise<WebSocket>((res, rej) => {
-    retrying = setInterval(async () => {
-      if (retrying && !pendingConnection && retries < retry) {
-        try {
-          console.info(`Connection attempt ${retries} for ${host}`)
-          pendingConnection = new WebSocket(host)
-          pendingConnection.onopen = function(this: WebSocket, ev: Event) {
-            console.log('Sucessfully connected to: ', this)
+  const connect = () =>
+    new Promise<WebSocket>((res, rej) => {
+      pendingTimer = setInterval(async () => {
+        if (!pendingConnection) {
+          try {
+            console.info(`Attempting connection to: ${host}`)
+            pendingConnection = new WebSocket(host)
+            pendingConnection.onopen = function(this: WebSocket, ev: Event) {
+              pendingTimer = clearTimeout(pendingTimer)
+              console.log('Sucessfully connected to: ', this)
+              res(this)
+            }
+            pendingConnection.onerror = function(this: WebSocket, ev: Event) {
+              console.error('WebSocket error: ', ev)
+              rej(this)
+            }
+            pendingConnection.onclose = function(this: WebSocket, ev: Event) {
+              console.log(`Disconnected, attempting reconnection...`)
+              connection = connect()
+            }
+          } catch (e) {
+            console.error(e)
           }
-          retrying = clearTimeout(retrying)
-
-          res(
-            new Promise(connectionComplete => {
-              let awaitConnectionCompletion = setInterval(() => {
-                if (pendingConnection.readyState) {
-                  clearTimeout(awaitConnectionCompletion)
-                  connectionComplete(pendingConnection)
-                }
-              }, 1000)
-            })
-          )
-        } catch (e) {
-          console.error(e)
-          retries = retries + 1
+        } else {
+          rej(`Unable to connect to ${host}.`)
         }
-      } else {
-        rej(
-          `Unable to connect to ${host}, retry limit of ${retry} attempts exceeded.`
-        )
-      }
-    }, 1000)
-  })
+      }, 1000)
+    })
 
+  let connection = connect()
   return send$ => {
+    // map each event in send$ (app Sink) to a WebSocket.send(msg)
     send$.addListener({
       next: msg => {
         // wait for the connection to be ready before sending
@@ -59,17 +55,19 @@ export const makeWebSocketDriver = (options?: Options) => {
         })
       },
       error: err => {
-        console.error(err)
+        console.error('err', err)
       },
       stop: () => {}
     })
 
+    // map the resolved connection to a stream of incoming events
     const source$ = xs
       .from(connection)
       .map(connection =>
         xs.create({
           start: listener => {
             connection.onerror = function(err) {
+              console.error(`Socket error: ${err}`)
               listener.error(err)
             }
 
