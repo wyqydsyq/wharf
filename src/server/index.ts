@@ -69,20 +69,18 @@ server.ws.use(async (ctx: WSCTX, next) => {
   // send the client a feed of stuff
   setInterval(() => {
     const time = Math.round(new Date().valueOf() / 1000)
-    wsl[id] &&
-      wsl[id].websocket.send(
-        JSON.stringify({
-          time,
-          wsh: mapObjIndexed(
-            (ws: WebSocket, id) => ({
-              id,
-              age: time - wsl[id].metadata.born,
-              ...wsl[id].metadata
-            }),
-            wsl
-          )
-        })
+    const payload = {
+      time,
+      wsh: mapObjIndexed(
+        (ws: WebSocket, id) => ({
+          id,
+          age: time - wsl[id].metadata.born,
+          ...wsl[id].metadata
+        }),
+        wsl
       )
+    }
+    wsl[id].websocket && wsl[id].websocket.send(JSON.stringify(payload))
   }, 1000)
 
   wsl[id] = { metadata, websocket: ctx.websocket }
