@@ -38,6 +38,11 @@ server.ws.use(async (ctx, next) => {
     console.log('WS: ', msg)
     ctx.websocket.send('Hello from the server!')
   })
+
+  setInterval(() => {
+    ctx.websocket.send(`Server time: ${new Date().toString()}`)
+  }, 1000)
+
   return next(ctx)
 })
 
