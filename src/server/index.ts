@@ -1,4 +1,3 @@
-// import * as Docker from 'dockerode'
 import * as ws from 'koa-websocket'
 import * as Koa from 'koa'
 import * as route from 'koa-route'
@@ -14,7 +13,6 @@ import { server as config } from '../config'
 import Boilerplate from './Boilerplate'
 import Main from '../client/Main'
 
-// const docker = new Docker()
 const server = ws(new Koa())
 
 server.use(mount('/static', serve('./dist')))
@@ -33,10 +31,8 @@ server.use(
 )
 
 server.ws.use(async (ctx, next) => {
-  // const swarm = await docker.swarmInspect()
   ctx.websocket.on('message', msg => {
     console.log('WS: ', msg)
-    ctx.websocket.send('Hello from the server!')
   })
 
   setInterval(() => {

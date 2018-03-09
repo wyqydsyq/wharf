@@ -5,7 +5,7 @@ export const Main = sources => {
   const wsSource = sources.WS || xs.from([])
   return {
     DOM: wsSource.map(ev => ev.data).startWith(pre(['🔥'])),
-    WS: xs.of('hello from the client!')
+    WS: xs.of('Hello from the client!')
   }
 }
 
