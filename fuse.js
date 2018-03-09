@@ -11,13 +11,13 @@ fuse.dev({ httpServer: false }) // just hmr server
 fuse
   .bundle('client/bundle')
   .instructions(' > client/index.ts')
+  .watch('client/**')
   .hmr()
-  .watch()
 
 fuse
   .bundle('server/bundle')
   .instructions(' > [server/index.ts]')
+  .watch('server/**')
   .completed(proc => proc.start())
-  .watch()
 
 fuse.run()
