@@ -1,19 +1,19 @@
 import xs from 'xstream'
-import { h1 } from '@cycle/dom'
+import { pre } from '@cycle/dom'
 
 export const Main = sources => {
   const wsSource$ = sources.WS || xs.from([])
-  const message$ = wsSource$.map(ev => ev.data).startWith(['🔥'])
-  const DOM$ = message$.map(msg =>
-    h1(
+  const message$ = wsSource$.map(ev => JSON.parse(ev.data)).startWith('🔥')
+  const DOM$ = message$.map(msg => {
+    return pre(
       {
         attrs: {
-          style: 'text-shadow: 0px 5px 10px #666; text-align: center'
+          style: 'max-width: 100%;'
         }
       },
-      [msg]
+      [JSON.stringify(msg, null, '\t')]
     )
-  )
+  })
   return {
     DOM: DOM$,
     WS: xs.of('Hello from the client!')
