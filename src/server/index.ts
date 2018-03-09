@@ -18,9 +18,12 @@ import { server as config } from '../config'
 
 const server = websockets(new Koa())
 
-// list of active websockets, keyed by ID
+// list of active websocket clients, keyed by ID
 const wsl: {
-  [index: string]: WebSocket
+  [index: string]: {
+    metadata: any
+    websocket: WebSocket
+  }
 } = {}
 
 interface WSCTX extends Koa.Context {
@@ -48,9 +51,9 @@ server.use(
 server.ws.use(async (ctx: WSCTX, next) => {
   // give the client an identity
   const id = uuid()
-  const meta = {
+  const metadata = {
     id,
-    initialized: new Date()
+    born: Math.round(new Date().valueOf() / 1000)
   }
   console.log(`WS:${id}:Open`)
 
@@ -65,18 +68,16 @@ server.ws.use(async (ctx: WSCTX, next) => {
 
   // send the client a feed of stuff
   setInterval(() => {
-    const time = new Date()
+    const time = Math.round(new Date().valueOf() / 1000)
     wsl[id] &&
-      wsl[id].send(
+      wsl[id].websocket.send(
         JSON.stringify({
           time,
           wsh: mapObjIndexed(
             (ws: WebSocket, id) => ({
               id,
-              age:
-                time.getUTCMilliseconds() -
-                meta.initialized.getUTCMilliseconds(),
-              ...meta
+              age: time - wsl[id].metadata.born,
+              ...wsl[id].metadata
             }),
             wsl
           )
@@ -84,7 +85,7 @@ server.ws.use(async (ctx: WSCTX, next) => {
       )
   }, 1000)
 
-  wsl[id] = ctx.websocket
+  wsl[id] = { metadata, websocket: ctx.websocket }
   return next()
 })
 
