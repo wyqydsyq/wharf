@@ -1,15 +1,26 @@
-import xs from 'xstream'
 import { Sources, Sinks } from '@cycle/run'
-import { pre } from '@cycle/dom'
+import { html, head, body, script } from '@cycle/dom'
 
 export const Boilerplate = (
   sources: Sources,
   Main: (sources: Sources) => Sinks
 ) => {
-  const MainDOM = Main(sources).DOM.take(1)
+  const MainDOM$ = Main(sources).DOM.take(1)
+  const wrappedDOM$ = MainDOM$.map(innerDOM =>
+    html([
+      head([
+        script({
+          props: {
+            src: '/static/client/bundle.js'
+          }
+        })
+      ]),
+      body([innerDOM])
+    ])
+  )
 
   return {
-    DOM: MainDOM
+    DOM: wrappedDOM$
   }
 }
 

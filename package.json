@@ -33,6 +33,7 @@
     "cycle-websocket": "0.1.2",
     "dockerode": "2.5.4",
     "koa": "2.5.0",
+    "koa-mount": "3.0.0",
     "koa-route": "3.2.0",
     "koa-static": "4.0.2",
     "koa-websocket": "4.1.0",

@@ -1,7 +1,9 @@
-import * as Docker from 'dockerode'
+// import * as Docker from 'dockerode'
 import * as ws from 'koa-websocket'
 import * as Koa from 'koa'
 import * as route from 'koa-route'
+import * as mount from 'koa-mount'
+import * as serve from 'koa-static'
 
 import { run } from '@cycle/run'
 import { makeHTMLDriver } from '@cycle/html'
@@ -10,8 +12,10 @@ import { makeServerHistoryDriver } from '@cycle/history'
 import Boilerplate from './Boilerplate'
 import Main from '../client/Main'
 
-const docker = new Docker()
+// const docker = new Docker()
 const server = ws(new Koa())
+
+server.use(mount('/static', serve('./dist')))
 
 server.use(
   route.all('/', (ctx: Koa.Context) => {
@@ -28,10 +32,10 @@ server.use(
 
 server.ws.use(
   route.all('/swarms', async (ctx, next) => {
-    const swarm = await docker.swarmInspect()
-    ctx.websocket.send(swarm)
+    // const swarm = await docker.swarmInspect()
+    ctx.websocket.send('server says hello')
     return next(ctx)
   })
 )
 
-server.listen(3000)
+server.listen(3210)
