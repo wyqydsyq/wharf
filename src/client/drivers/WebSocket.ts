@@ -4,11 +4,14 @@ import { adapt } from '@cycle/run/lib/adapt'
 import { server } from '../../config'
 
 export interface Options {
-  retry: number
+  retry?: number
+  path?: string
 }
 
 export const makeWebSocketDriver = (options?: Options) => {
-  const host = `ws://${server.host}:${server.port}`
+  const host = `ws://${server.host}:${server.port}${
+    options && options.path ? options.path : ''
+  }`
   const retry = (options && options.retry) || 5
   let retries = 0
   let retrying
