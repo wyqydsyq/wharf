@@ -55,6 +55,7 @@ server.ws.use(async (ctx: WSCTX, next) => {
     id,
     born: Math.round(new Date().valueOf() / 1000)
   }
+  wsl[id] = { metadata, websocket: ctx.websocket }
   console.log(`WS:${id}:Open`)
 
   ctx.websocket.on('message', msg => {
@@ -80,10 +81,11 @@ server.ws.use(async (ctx: WSCTX, next) => {
         wsl
       )
     }
-    wsl[id].websocket && wsl[id].websocket.send(JSON.stringify(payload))
+    wsl[id] &&
+      wsl[id].websocket &&
+      wsl[id].websocket.send(JSON.stringify(payload))
   }, 1000)
 
-  wsl[id] = { metadata, websocket: ctx.websocket }
   return next()
 })
 
