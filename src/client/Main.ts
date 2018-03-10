@@ -3,7 +3,9 @@ import { pre, div } from '@cycle/dom'
 
 export const Main = sources => {
   const wsSource$ = sources.WS || xs.from([])
-  const message$ = wsSource$.map(ev => JSON.parse(ev.data)).startWith(null)
+  const message$ = wsSource$
+    .map(ev => ev.data && JSON.parse(ev.data))
+    .startWith(null)
   const DOM$ = message$.map(msg => {
     return div(
       {
