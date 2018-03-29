@@ -3,7 +3,7 @@ import * as KoaWebsocket from 'koa-websocket'
 import * as route from 'koa-route'
 import * as mount from 'koa-mount'
 import * as serve from 'koa-static'
-import { mapObjIndexed } from 'ramda'
+import * as uuid from 'uuid/v4'
 
 // stuff for cycle SSR
 import { run } from '@cycle/run'
@@ -12,7 +12,7 @@ import { makeServerHistoryDriver } from '@cycle/history'
 import Boilerplate from './Boilerplate'
 import Main from '../client/Main'
 
-import { WSList, WSCTX } from './types'
+import { Client, WSContext } from './types'
 import { server as config } from '../config'
 
 const app = KoaWebsocket(new Koa())
@@ -34,49 +34,50 @@ app.use(
   })
 )
 
-// list of active websocket clients, keyed by ID
-const wsl: WSList = {}
+// Map of active websocket clients, indexed by ID
+const clientList = new Map<string, Client>()
 
 // handle incoming ws client connections
-app.ws.use(async function(ctx: WSCTX) {
-  // give the client an identity
-  const id = require('uuid/v4')()
-  const metadata = {
-    id,
-    born: Math.round(new Date().valueOf() / 1000)
+app.ws.use(async function(ctx: WSContext) {
+  const id = uuid()
+  const client: Client = {
+    websocket: ctx.websocket,
+    metadata: {
+      id,
+      born: Math.round(new Date().valueOf() / 1000)
+    }
   }
 
   // store the client in the WebSocket list
-  wsl[id] = { metadata, websocket: ctx.websocket }
+  clientList.set(id, client)
   console.log(`WS:${id}:Open`)
 
   let heartbeat = setInterval(() => {
     const time = Math.round(new Date().valueOf() / 1000)
     const payload = {
       time,
-      wsl: mapObjIndexed(
-        (ws: WebSocket, wsid) => ({
-          id: wsid,
-          age: time - wsl[wsid].metadata.born,
-          ...wsl[wsid].metadata
-        }),
-        wsl
-      )
+      clients: {}
     }
 
-    if (wsl[id] && wsl[id].websocket) {
-      wsl[id].websocket.send(JSON.stringify(payload))
-    }
+    clientList.forEach((client: Client, id: string) => {
+      payload.clients[id] = {
+        id,
+        age: time - client.metadata.born,
+        ...client.metadata
+      }
+    })
+
+    client.websocket.send(JSON.stringify(payload))
   }, 1000)
 
-  wsl[id].websocket.on('message', msg => {
+  client.websocket.on('message', msg => {
     console.log(`WS:${id}:Message:`, msg)
   })
 
-  wsl[id].websocket.on('close', () => {
+  client.websocket.on('close', () => {
     console.log(`WS:${id}:Close`)
     clearInterval(heartbeat)
-    delete wsl[id]
+    clientList.delete(id)
   })
 
   return

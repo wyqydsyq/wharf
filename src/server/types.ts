@@ -1,18 +1,16 @@
 import { Context } from 'koa'
 import WebSocket from 'ws'
 
-export interface WSCTX extends Context {
+export interface WSContext extends Context {
   websocket: WebSocket
 }
 
-export interface WSList {
-  [index: string]: {
-    metadata: WSMetadata
-    websocket: WebSocket
-  }
+export interface Client {
+  metadata: ClientMetadata
+  websocket: WebSocket
 }
 
-export interface WSMetadata {
+export interface ClientMetadata {
   id: string
   born: number
   age?: number
