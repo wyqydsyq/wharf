@@ -17,11 +17,8 @@ fuse
 fuse
   .bundle('server/bundle')
   .instructions(' > [server/index.ts]')
-  .watch()
   .completed(proc => {
-    setTimeout(() => {
-      proc.start()
-    }, 1000)
+    proc.start()
   })
 
 fuse.run()
