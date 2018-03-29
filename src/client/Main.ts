@@ -1,11 +1,22 @@
 import xs from 'xstream'
 import { pre, div } from '@cycle/dom'
 
+let myId = undefined
+
 export const Main = sources => {
   const wsSource$ = sources.WS || xs.from([])
   const message$ = wsSource$
-    .map(ev => ev.data && JSON.parse(ev.data))
-    .startWith(null)
+    .map(socket => {
+      if (socket instanceof WebSocket) {
+        return {
+          connected: socket.readyState === socket.OPEN
+        }
+      } else {
+        return socket.data && JSON.parse(socket.data)
+      }
+    })
+    .startWith(undefined)
+
   const DOM$ = message$.map(msg => {
     return div(
       {
@@ -24,7 +35,7 @@ export const Main = sources => {
           },
           [
             msg
-              ? 'Connected Clients: \n' + JSON.stringify(msg, null, '\t')
+              ? JSON.stringify(msg, null, '\t')
               : div(
                   { attrs: { style: 'text-align: center; font-size: 4em' } },
                   ['🔥']
@@ -36,7 +47,22 @@ export const Main = sources => {
   })
   return {
     DOM: DOM$,
-    WS: xs.of('Hello from the client!')
+    WS: message$
+      .filter(msg => {
+        // unset myId if a disconnection happened
+        if (msg && msg.connected === false) {
+          myId = undefined
+        }
+
+        const recievedId = msg && msg.id
+        if ((!myId && !recievedId) || myId) {
+          return false
+        }
+
+        myId = recievedId
+        return true
+      })
+      .map(msg => `Hello, I'm ${msg.id}!`)
   }
 }
 

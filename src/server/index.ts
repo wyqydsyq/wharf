@@ -48,13 +48,13 @@ app.ws.use(async function(ctx: WSContext) {
     }
   }
 
-  // store the client in the WebSocket list
   clientList.set(id, client)
   console.log(`WS:${id}:Open`)
 
   let heartbeat = setInterval(() => {
     const time = Math.round(new Date().valueOf() / 1000)
     const payload = {
+      id,
       time,
       clients: {}
     }

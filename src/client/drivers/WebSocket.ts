@@ -9,6 +9,12 @@ export interface Options {
   path?: string
 }
 
+declare global {
+  interface Window {
+    __ch: Promise<WebSocket>
+  }
+}
+
 export const makeWebSocketDriver = (options?: Options) => {
   const host = `ws://${server.host}:${server.port}${
     options && options.path ? options.path : ''
@@ -16,13 +22,13 @@ export const makeWebSocketDriver = (options?: Options) => {
   const retryLimit = (options && options.retryLimit) || 5
   const retryRate = (options && options.retryRate) || 3000
 
-  const connection = connect(host)
+  window.__ch = connect(host)
   return send$ => {
     // map each event in send$ (app Sink) to a WebSocket.send(msg)
     send$.addListener({
       next: msg => {
         // wait for the connection to be ready before sending
-        connection.then(activeConnection => {
+        window.__ch.then(activeConnection => {
           activeConnection.send(msg)
         })
       },
@@ -33,9 +39,9 @@ export const makeWebSocketDriver = (options?: Options) => {
     })
 
     const source$ = xs
-      .from(connection)
+      .from(window.__ch)
       .map(activeConnection =>
-        connectionMapper(host, retryLimit, retryRate, activeConnection)
+        handleConnection(host, retryLimit, retryRate, activeConnection)
       )
       .flatten()
 
@@ -44,14 +50,14 @@ export const makeWebSocketDriver = (options?: Options) => {
 }
 
 // map the resolved connection to a stream of incoming events
-const connectionMapper = (
+const handleConnection = (
   host: string,
   retryLimit: number,
   retryRate: number,
   connection: WebSocket
 ) =>
   xs.create({
-    start: listener => {
+    start: async listener => {
       connection.onerror = function(err) {
         console.error(`Socket error: ${err}`)
         listener.error(err)
@@ -61,11 +67,14 @@ const connectionMapper = (
         listener.next(msg)
       }
       connection.onclose = async function(ev: CloseEvent) {
-        console.log(`Disconnected: `, ev)
+        console.log(`WebSocket disconnected: `, ev)
+        listener.next(connection)
 
         for (
           let attempts = 1;
-          attempts <= retryLimit && connection.readyState !== connection.OPEN;
+          (!await window.__ch ||
+            (await window.__ch).readyState === (await window.__ch).CLOSED) &&
+          attempts <= retryLimit;
           attempts++
         ) {
           await new Promise(retryRateElapsed =>
@@ -76,26 +85,47 @@ const connectionMapper = (
 
           console.log(`Reconnection attempt ${attempts}/${retryLimit}`)
           try {
-            connection = await connect(host)
-            listener.next(connection)
+            window.__ch = connect(host)
+            const ch = await window.__ch
+
+            // rebind new connection's listener
+            ch.onmessage = function(msg) {
+              listener.next(msg)
+            }
+
+            // emit handle so app can react to new state etc
+            listener.next(ch)
           } catch (e) {
             console.error(`Reconnection failed:`, e)
+            delete window.__ch
           }
         }
       }
+
+      listener.next(connection)
     },
     stop: () => {
-      connection.close()
+      window.__ch.then(h => h.close())
     }
   })
 
 const connect = (host: string) => {
-  return new Promise<WebSocket>((res, rej) => {
+  return new Promise<WebSocket>(async (res, rej) => {
+    // force-close any stale connection
+    if (window.__ch) {
+      ;(await window.__ch).close()
+      await new Promise(wait =>
+        setTimeout(() => {
+          wait()
+        }, 1000)
+      )
+    }
+
     try {
       console.info(`Attempting connection to: ${host}`)
       const pendingConnection = new WebSocket(host)
       pendingConnection.onopen = function(this: WebSocket, ev: Event) {
-        console.log('Sucessfully connected to: ', this)
+        console.log('WebSocket connected: ', ev)
         res(this)
       }
       pendingConnection.onerror = function(this: WebSocket, ev: Event) {
