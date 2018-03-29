@@ -1,9 +1,8 @@
-import * as websockets from 'koa-websocket'
 import * as Koa from 'koa'
+import * as KoaWebsocket from 'koa-websocket'
 import * as route from 'koa-route'
 import * as mount from 'koa-mount'
 import * as serve from 'koa-static'
-import uuid from 'uuid/v4'
 import { mapObjIndexed } from 'ramda'
 
 // stuff for cycle SSR
@@ -13,19 +12,16 @@ import { makeServerHistoryDriver } from '@cycle/history'
 import Boilerplate from './Boilerplate'
 import Main from '../client/Main'
 
-import { WSCTX, WSList } from './types'
+import { WSList, WSCTX } from './types'
 import { server as config } from '../config'
 
-const server = websockets(new Koa())
-
-// list of active websocket clients, keyed by ID
-const wsl: WSList = {}
+const app = KoaWebsocket(new Koa())
 
 // serve static assets
-server.use(mount('/static', serve('./dist')))
+app.use(mount('/static', serve('./dist')))
 
 // serve SSR-rendered, Boilerplate-wrapped Main like an index.html
-server.use(
+app.use(
   route.all('/', (ctx: Koa.Context) => {
     run(sources => Boilerplate(sources, Main), {
       History: makeServerHistoryDriver({
@@ -38,14 +34,18 @@ server.use(
   })
 )
 
+// list of active websocket clients, keyed by ID
+const wsl: WSList = {}
+
 // handle incoming ws client connections
-server.ws.use((ctx: WSCTX, next) => {
+app.ws.use(async function(ctx: WSCTX) {
   // give the client an identity
-  const id = uuid()
+  const id = require('uuid/v4')()
   const metadata = {
     id,
     born: Math.round(new Date().valueOf() / 1000)
   }
+
   // store the client in the WebSocket list
   wsl[id] = { metadata, websocket: ctx.websocket }
   console.log(`WS:${id}:Open`)
@@ -79,8 +79,8 @@ server.ws.use((ctx: WSCTX, next) => {
     delete wsl[id]
   })
 
-  return next()
+  return
 })
 
-server.listen(config.port)
+app.listen(config.port)
 console.log(`Started Koa HTTP & WS server on port ${config.port}`)
